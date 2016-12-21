@@ -20,9 +20,11 @@ try:
 except ImportError:
     flags = None
 
+#This script is dervived from Googles own Google Drive API Python 
+#Quickstart and pulls together many of the reference samples.
 
 # If modifying these scopes, delete your previously saved credentials
-# at ~/.credentials/drive-python-quickstart.json
+# at ~/.credentials/dgdfl-secrets.json
 SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly'
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Google Drive Folder List'
@@ -46,7 +48,7 @@ def get_credentials():
     if not os.path.exists(credential_dir):
         os.makedirs(credential_dir)
     credential_path = os.path.join(credential_dir,
-                                   'GADFL-secrets.json')
+                                   'gdfl-secrets.json')
 
     store = Storage(credential_path)
     credentials = store.get()
@@ -101,7 +103,7 @@ def get_folders(service, folder_id, level,Html_file):
         break
 
 def get_child_sub_folders(service, parent_id, level,Html_file):
-    """Get's the folders in the parent folder
+    """Get's the folders in the child folder
     """
     page_token = None
     while True:
@@ -151,10 +153,11 @@ def get_child_sub_folders(service, parent_id, level,Html_file):
 
 
 def main():
-    """Shows basic usage of the Google Drive API.
+    """Uses Google Drive API to get the parent folder
 
-    Creates a Google Drive API service object and outputs the names and IDs
-    for up to 10 files.
+    Gets the parent folder specified in args or uses the users Root folder
+    Calls the function to get sub folders and loops through all child folders.
+    Produces the html file output and opens it in the default browser.
     """
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
