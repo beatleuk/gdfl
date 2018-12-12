@@ -6,7 +6,7 @@ import codecs
 import webbrowser
 
 from operator import itemgetter, attrgetter
-from apiclient import discovery
+from apiclient import errors, discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
@@ -15,13 +15,16 @@ try:
     import argparse
 
     parent = argparse.ArgumentParser(parents=[tools.argparser])
-    parent.add_argument("-f","--folder_id", help="Enter folder ID to list")
+    parent.add_argument("-f", "--folder_id", help="Enter folder ID to list")
+    #parent.add_argument("-c", "--files", help="To process child files too")
+    parent.add_argument("-c", "--files", action='store_false',
+                        help="To include child files in folders")
     flags = parent.parse_args()
 except ImportError:
     flags = None
 
-#This script is dervived from Googles own Google Drive API Python 
-#Quickstart and pulls together many of the reference samples.
+# This script is dervived from Googles own Google Drive API Python
+# Quickstart and pulls together many of the reference samples.
 
 # If modifying these scopes, delete your previously saved credentials
 # at ~/.credentials/dgdfl-secrets.json
@@ -57,100 +60,113 @@ def get_credentials():
         flow.user_agent = APPLICATION_NAME
         if flags:
             credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
+        else:  # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
         print('Storing credentials to ' + credential_path)
     return credentials
 
-def get_folders(service, folder_id, level,Html_file):
+
+def get_folders(service, folder_id, level, Html_file, folders_only):
     """Get's the folders in the parent folder
     """
     page_token = None
     while True:
-      try:
-        param = {}
-        if page_token:
-          param['pageToken'] = page_token
+        try:
+            param = {}
+            if page_token:
+                param['pageToken'] = page_token
 
-        results = service.files().list(
-            q="'" + folder_id + "' in parents and mimeType='application/vnd.google-apps.folder'",
-            fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
-            **param,).execute()
+            if folders_only == True:
+                #print('Doing folders only {0}'.format(folders_only))
+                query = "'" + folder_id + "' in parents and mimeType='application/vnd.google-apps.folder'"
+            else:
+                #print('Doing folders and files {0}'.format(folders_only))
+                query = "'" + folder_id + "' in parents"
 
-        items = results.get('files', [])
-        items.sort(key=itemgetter('name'))
-        level += 1
-        if items:
-            for item in items:
-                current_id = item['id']
-                indent = ' ' * level
-                html_list2 = """
+            results = service.files().list(
+                q=query, orderBy='folder',
+                fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
+                **param).execute()
+
+            items = results.get('files', [])
+            items.sort(key=itemgetter('name'))
+            level += 1
+            if items:
+                for item in items:
+                    current_id = item['id']
+                    indent = ' ' * level
+                    html_list2 = """
                 <ul style="list-style: none;">
-                <li><img src='"""+item['iconLink']+"""'><span><a href='"""+item['webViewLink']\
-                             +"""' target='_blank'>"""+item['name']+"""</a></span>"""
-                Html_file.write(html_list2)
-                get_child_sub_folders(service, current_id, level,Html_file)
-                Html_file.write("""
+                <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
+                                 + """' target='_blank'> """ + item['name'] + """</a></span>"""
+                    Html_file.write(html_list2)
+                    get_child_sub_folders(service, current_id, level, Html_file, folders_only)
+                    Html_file.write("""
                   </li>
                 </ul>""")
-            page_token = results.get('nextPageToken')
+                page_token = results.get('nextPageToken')
 
-        if not page_token:
-          break
+            if not page_token:
+                break
 
-      except errors.HttpError as error:
-        print('An error occurred: %s' % error)
-        break
+        except errors.HttpError as error:
+            print('An error occurred: %s' % error)
+            break
 
-def get_child_sub_folders(service, parent_id, level,Html_file):
+
+def get_child_sub_folders(service, parent_id, level, Html_file, folders_only):
     """Get's the folders in the child folder
     """
     page_token = None
     while True:
-      try:
-        param = {}
-        if page_token:
-          param['pageToken'] = page_token
+        try:
+            param = {}
+            if page_token:
+                param['pageToken'] = page_token
 
-        results = service.files().list(
-            q="'" + parent_id + "' in parents and mimeType='application/vnd.google-apps.folder'",
-            fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
-            **param).execute()
+            if folders_only == True:
+                query = "'" + parent_id + "' in parents and mimeType='application/vnd.google-apps.folder'"
+            else:
+                query = "'" + parent_id + "' in parents"
 
-        items = results.get('files', [])
-        items.sort(key=itemgetter('name'))
-        prev_level = level
-        level += 1
-        if items:
-            for item in items:
-                child_id = item['id']
-                indent = '  ' * level
-                if level > prev_level:
-                    html_list3 = """
+            results = service.files().list(
+                q=query, orderBy='folder',
+                fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
+                **param).execute()
+
+            items = results.get('files', [])
+            items.sort(key=itemgetter('name'))
+            prev_level = level
+            level += 1
+            if items:
+                for item in items:
+                    child_id = item['id']
+                    indent = '  ' * level
+                    if level > prev_level:
+                        html_list3 = """
                     <ul style="list-style: none;">
-                    <li><img src='"""+item['iconLink']+"""'><span><a href='"""+item['webViewLink']\
-                                 +"""' target='_blank'>"""+item['name']+"""</a></span>"""
-                    Html_file.write(html_list3)
-                else:
-                    html_list3 = """
-                    <li><img src='"""+item['iconLink']+"""'><span><a href='"""+item['webViewLink']\
-                                 +"""' target='_blank'>"""+item['name']+"""</a></li>"""
-                    Html_file.write(html_list3)
+                    <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
+                                     + """' target='_blank'> """ + item['name'] + """</a></span>"""
+                        Html_file.write(html_list3)
+                    else:
+                        html_list3 = """
+                    <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
+                                     + """' target='_blank'> """ + item['name'] + """</a></li>"""
+                        Html_file.write(html_list3)
 
-                prev_level = level
-                get_child_sub_folders(service, child_id, level,Html_file)
-            page_token = results.get('nextPageToken')
-            Html_file.write("""
+                    prev_level = level
+                    get_child_sub_folders(service, child_id, level, Html_file, folders_only)
+                page_token = results.get('nextPageToken')
+                Html_file.write("""
               </li>
             </ul>""")
 
-        if not page_token:
-          break
+            if not page_token:
+                break
 
-      except errors.HttpError as error:
-        print('An error occurred: %s' % error)
-        break
-
+        except errors.HttpError as error:
+            print('An error occurred: %s' % error)
+            break
 
 def main():
     """Uses Google Drive API to get the parent folder
@@ -166,6 +182,8 @@ def main():
         folder_id = 'root'
     else:
         folder_id = flags.folder_id
+
+    folders_only = flags.files
 
     level = 0
 
@@ -184,7 +202,7 @@ def main():
         </script>
       </head>
       <body>"""
-      #< body style = 'background-color:black;' > """
+    # < body style = 'background-color:black;' > """
     Html_file.write(html_start)
 
     try:
@@ -198,13 +216,13 @@ def main():
         html_list1 = """
         <UL id="example_tree" style="list-style: none;">
           <li><img src='https://ssl.gstatic.com/docs/doclist/images/icon_11_shared_collection_list_1.png'>
-          <span>"""+file['name']+"""</span>"""
+          <span>""" + file['name'] + """</span>"""
         Html_file.write(html_list1)
         print('Building folder structure for {0}'.format(file['name']))
     except errors.HttpError as error:
         print('An error occurred: %s' % error)
-    
-    get_folders(service, folder_id, level,Html_file)
+
+    get_folders(service, folder_id, level, Html_file, folders_only)
 
     html_end = """
           </li>
@@ -214,6 +232,7 @@ def main():
     Html_file.write(html_end)
     Html_file.close()
     webbrowser.open(html_file)
+
 
 if __name__ == '__main__':
     main()
