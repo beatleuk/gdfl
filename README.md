@@ -19,3 +19,5 @@ Follow these instructions:
 8. Move this file to your working directory and rename it client_secret.json.
 9. Run the scritp using python gdfl.py -f FOLDER_ID
 10. Authorise the script to have read only access to your Drive.
+11. Added -c argument for processing files in folders, e.g. python gdfl.py -f FOLDER_ID -c will produce hmtl file
+    of all folders including their files
