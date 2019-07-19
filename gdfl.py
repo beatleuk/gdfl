@@ -16,7 +16,6 @@ try:
 
     parent = argparse.ArgumentParser(parents=[tools.argparser])
     parent.add_argument("-f", "--folder_id", help="Enter folder ID to list")
-    #parent.add_argument("-c", "--files", help="To process child files too")
     parent.add_argument("-c", "--files", action='store_false',
                         help="To include child files in folders")
     flags = parent.parse_args()
@@ -28,17 +27,15 @@ except ImportError:
 
 # If modifying these scopes, delete your previously saved credentials
 # at ~/.credentials/dgdfl-secrets.json
-SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly'
+SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Google Drive Folder List'
 
 
 def get_credentials():
     """Gets valid user credentials from storage.
-
     If nothing has been stored, or if the stored credentials are invalid,
     the OAuth2 flow is completed to obtain the new credentials.
-
     Returns:
         Credentials, the obtained credential.
     """
@@ -65,10 +62,12 @@ def get_credentials():
         print('Storing credentials to ' + credential_path)
     return credentials
 
-
-def get_folders(service, folder_id, level, Html_file, folders_only):
+def get_folders(service, folder_id, level, Html_file, folders_only, drivetype):
     """Get's the folders in the parent folder
     """
+    global FOLDERCOUNT
+    global FILECOUNT
+    global DEEPEST
     page_token = None
     while True:
         try:
@@ -77,30 +76,48 @@ def get_folders(service, folder_id, level, Html_file, folders_only):
                 param['pageToken'] = page_token
 
             if folders_only == True:
-                #print('Doing folders only {0}'.format(folders_only))
                 query = "'" + folder_id + "' in parents and mimeType='application/vnd.google-apps.folder'"
             else:
-                #print('Doing folders and files {0}'.format(folders_only))
                 query = "'" + folder_id + "' in parents"
 
-            results = service.files().list(
-                q=query, orderBy='folder',
-                fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
-                **param).execute()
-
+            if drivetype == 'Shared Drive':
+                results = service.files().list(
+                    q=query,
+                    driveId=folder_id,
+                    corpora='drive',
+                    includeItemsFromAllDrives='true',
+                    supportsAllDrives='true',
+                    fields="nextPageToken, files(id, name, parents, webViewLink, iconLink, mimeType)").execute()
+            else:
+                results = service.files().list(
+                    q=query, orderBy='folder',
+                    fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
+                    **param).execute()
+            
             items = results.get('files', [])
             items.sort(key=itemgetter('name'))
             level += 1
             if items:
                 for item in items:
+                    if drivetype == 'Shared Drive':
+                        if item['mimeType'] == 'application/vnd.google-apps.folder':
+                            FOLDERCOUNT += 1
+                            if level > DEEPEST:
+                                DEEPEST = level
+                        else:
+                            FILECOUNT += 1
                     current_id = item['id']
+                    itemname = item['name']
+                    if isinstance(itemname, str):
+                        childname = unicode(childname, "utf-8")
                     indent = ' ' * level
+                    depth = str(level)
                     html_list2 = """
                 <ul style="list-style: none;">
                 <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
-                                 + """' target='_blank'> """ + item['name'] + """</a></span>"""
-                    Html_file.write(html_list2)
-                    get_child_sub_folders(service, current_id, level, Html_file, folders_only)
+                                 + """' target='_blank'> """ + itemname + """</a></span>"""
+                    Html_file.write(html_list2.encode("utf-8"))
+                    get_child_sub_folders(service, current_id, level, Html_file, folders_only, folder_id, drivetype)
                     Html_file.write("""
                   </li>
                 </ul>""")
@@ -113,10 +130,12 @@ def get_folders(service, folder_id, level, Html_file, folders_only):
             print('An error occurred: %s' % error)
             break
 
-
-def get_child_sub_folders(service, parent_id, level, Html_file, folders_only):
+def get_child_sub_folders(service, parent_id, level, Html_file, folders_only, folder_id, drivetype):
     """Get's the folders in the child folder
     """
+    global FOLDERCOUNT
+    global FILECOUNT
+    global DEEPEST
     page_token = None
     while True:
         try:
@@ -129,10 +148,19 @@ def get_child_sub_folders(service, parent_id, level, Html_file, folders_only):
             else:
                 query = "'" + parent_id + "' in parents"
 
-            results = service.files().list(
-                q=query, orderBy='folder',
-                fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
-                **param).execute()
+            if drivetype == 'Shared Drive':
+                results = service.files().list(
+                    q=query,
+                    driveId=folder_id,
+                    corpora='drive',
+                    includeItemsFromAllDrives='true',
+                    supportsAllDrives='true',
+                    fields="nextPageToken, files(id, name, parents, webViewLink, iconLink, mimeType)").execute()
+            else:
+                results = service.files().list(
+                    q=query, orderBy='folder',
+                    fields="nextPageToken, files(id, name, parents, webViewLink, iconLink)",
+                    **param).execute()
 
             items = results.get('files', [])
             items.sort(key=itemgetter('name'))
@@ -140,22 +168,34 @@ def get_child_sub_folders(service, parent_id, level, Html_file, folders_only):
             level += 1
             if items:
                 for item in items:
+                    if drivetype == 'Shared Drive':
+                        if item['mimeType'] == 'application/vnd.google-apps.folder':
+                            FOLDERCOUNT += 1
+                            if level > DEEPEST:
+                                DEEPEST = level
+                        else:
+                            FILECOUNT += 1
                     child_id = item['id']
+                    childname = item['name']
+                    if isinstance(childname, str):
+                        childname = unicode(childname, "utf-8")
+                    #print(item['webViewLink'])
                     indent = '  ' * level
+                    depth = str(level)
                     if level > prev_level:
                         html_list3 = """
                     <ul style="list-style: none;">
                     <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
-                                     + """' target='_blank'> """ + item['name'] + """</a></span>"""
-                        Html_file.write(html_list3)
+                                     + """' target='_blank'> """ + childname + """</a></span>"""
+                        Html_file.write(html_list3.encode("utf-8"))
                     else:
                         html_list3 = """
                     <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
-                                     + """' target='_blank'> """ + item['name'] + """</a></li>"""
-                        Html_file.write(html_list3)
+                                     + """' target='_blank'> """ + childname + """</a></li>"""
+                        Html_file.write(html_list3.encode("utf-8"))
 
                     prev_level = level
-                    get_child_sub_folders(service, child_id, level, Html_file, folders_only)
+                    get_child_sub_folders(service, child_id, level, Html_file, folders_only, folder_id, drivetype)
                 page_token = results.get('nextPageToken')
                 Html_file.write("""
               </li>
@@ -170,7 +210,6 @@ def get_child_sub_folders(service, parent_id, level, Html_file, folders_only):
 
 def main():
     """Uses Google Drive API to get the parent folder
-
     Gets the parent folder specified in args or uses the users Root folder
     Calls the function to get sub folders and loops through all child folders.
     Produces the html file output and opens it in the default browser.
@@ -180,14 +219,37 @@ def main():
     service = discovery.build('drive', 'v3', http=http)
     if not flags.folder_id:
         folder_id = 'root'
+        drivetype = 'My Drive'
     else:
         folder_id = flags.folder_id
 
-    folders_only = flags.files
+        try:
+            folder = service.files().get(fileId=folder_id).execute()
+            foldername = folder['name']
+            drivetype = 'My Drive'
+            print("Folder ID " + folder_id + " is a Google Drive Folder called: " + foldername)
+        except errors.HttpError as error:
+            try:
+                folder = service.drives().get(
+                  driveId=folder_id,
+                  useDomainAdminAccess='true').execute()
+                foldername = folder['name']
+                drivetype = 'Shared Drive'
+                print("Folder ID " + folder_id + " is a Shared Drive named: " + foldername)
+            except errors.HttpError as error:
+                foldername = ''
 
+    if not foldername:
+       print('An error occurred %s' % error)
+       exit()
+
+    if isinstance(foldername, str):
+        childname = unicode(foldername, "utf-8")
+
+    folders_only = flags.files
     level = 0
 
-    html_file = 'GDFL-' + folder_id + '.html'
+    html_file = 'GADFL-' + foldername + '.html'
     Html_file = open(html_file, "w")
     html_start = """<!DOCTYPE html>
     <html>
@@ -202,37 +264,46 @@ def main():
         </script>
       </head>
       <body>"""
-    # < body style = 'background-color:black;' > """
     Html_file.write(html_start)
+    header = 'Folder structure for: ' + folder['name']
+    html_heading = """
+    <div style='text-align:center;'>
+    <h1>""" + header + """</h1>
+    </div>"""
+    Html_file.write(html_heading.encode("utf-8"))
+    html_list1 = """
+    <UL id="example_tree" style="list-style: none;">
+      <li><img src='https://ssl.gstatic.com/docs/doclist/images/icon_11_shared_collection_list_1.png'>
+      <span>""" + folder['name'] + """</span>"""
+    Html_file.write(html_list1.encode("utf-8"))
+    print('Building folder structure for {0}'.format(folder['name']))
 
-    try:
-        file = service.files().get(fileId=folder_id).execute()
-        header = 'Folder structure for: ' + file['name']
-        html_heading = """
-        <div style='text-align:center;'>
-        <h1>""" + header + """</h1>
-        </div>"""
-        Html_file.write(html_heading)
-        html_list1 = """
-        <UL id="example_tree" style="list-style: none;">
-          <li><img src='https://ssl.gstatic.com/docs/doclist/images/icon_11_shared_collection_list_1.png'>
-          <span>""" + file['name'] + """</span>"""
-        Html_file.write(html_list1)
-        print('Building folder structure for {0}'.format(file['name']))
-    except errors.HttpError as error:
-        print('An error occurred: %s' % error)
-
-    get_folders(service, folder_id, level, Html_file, folders_only)
+    get_folders(service, folder_id, level, Html_file, folders_only, drivetype)
+    
+    footer = ""
+    if drivetype == 'Shared Drive':
+        global FOLDERCOUNT
+        global FILECOUNT
+        global DEEPEST
+        TOTALCOUNT = FOLDERCOUNT + FILECOUNT
+        if folders_only == True:
+            footer = """<h1>The number of folders = """ + str(FOLDERCOUNT) + """
+                deepest nesting is """ + str(DEEPEST) + """</h1>"""
+        else:
+            footer = """<h1>The number of folders = """ + str(FOLDERCOUNT) + """
+                and the number of files = """ + str(FILECOUNT) + """ 
+                totalling: """ + str(TOTALCOUNT) + """
+                deepest nesting is """ + str(DEEPEST) + """</h1>"""
 
     html_end = """
           </li>
         </ul>
+        """ + footer + """
       </body>
     </html> """
     Html_file.write(html_end)
     Html_file.close()
     webbrowser.open(html_file)
-
 
 if __name__ == '__main__':
     main()
