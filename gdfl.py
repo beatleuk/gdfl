@@ -249,7 +249,7 @@ def main():
     folders_only = flags.files
     level = 0
 
-    html_file = 'GADFL-' + foldername + '.html'
+    html_file = 'GDFL-' + foldername + '.html'
     Html_file = open(html_file, "w")
     html_start = """<!DOCTYPE html>
     <html>
