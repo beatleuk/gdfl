@@ -1,7 +1,9 @@
 # gdfl
 Google Drive Folder List builds a html output file of a Google Drive folder.
 
-This script will take an inoput folder ID or just run againnst the users Root if nothing specified.
+#NB If you have run this script before the 19/07/2019 update you will need to delete the gdfl-secrets.json file from the .credentials folder in your User\Profile directory and re-authorise the script as it is using a different scope.
+
+This script will take an inoput Google Drive folder\Shared Drive ID or just run against the users Root if nothing specified.
 The script get's the folder name by ID and then builds a sorted folder structure of all the child folders
 and writes this structure to a html file which also contains collapsable folders and each folder is 
 a link to the actual Google Drive folder
@@ -21,3 +23,4 @@ Follow these instructions:
 10. Authorise the script to have read only access to your Drive.
 11. Added -c argument for processing files in folders, e.g. python gdfl.py -f FOLDER_ID -c will produce hmtl file
     of all folders including their files
+12. Supports Google Shared Drives using the same command as above
