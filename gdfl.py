@@ -291,10 +291,9 @@ def main():
       <li><img src='https://ssl.gstatic.com/docs/doclist/images/icon_11_shared_collection_list_1.png'>
       <span>""" + folder['name'] + """</span>"""
     if (sys.version_info < (3, 0)):
-        Html_file.write(html_list1.encode("utf-8"))
+        print('Building folder structure for {0}'.format(folder['name'].encode("utf-8")))
     else:
-        Html_file.write(html_list1)
-    print('Building folder structure for {0}'.format(folder['name']))
+        print('Building folder structure for {0}'.format(folder['name']))
 
     get_folders(service, folder_id, level, Html_file, folders_only, drivetype)
     
@@ -321,7 +320,10 @@ def main():
     </html> """
     Html_file.write(html_end)
     Html_file.close()
-    webbrowser.open(html_file)
+    if (sys.version_info < (3, 0)):
+        webbrowser.open(html_file.encode("utf-8"))
+    else:
+        webbrowser.open(html_file)
 
 if __name__ == '__main__':
     main()
