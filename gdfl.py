@@ -108,15 +108,18 @@ def get_folders(service, folder_id, level, Html_file, folders_only, drivetype):
                             FILECOUNT += 1
                     current_id = item['id']
                     itemname = item['name']
-                    if isinstance(itemname, str):
-                        childname = unicode(childname, "utf-8")
+                    #if isinstance(itemname, str):
+                        #childname = unicode(childname, "utf-8")
                     indent = ' ' * level
                     depth = str(level)
                     html_list2 = """
                 <ul style="list-style: none;">
                 <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
                                  + """' target='_blank'> """ + itemname + """</a></span>"""
-                    Html_file.write(html_list2.encode("utf-8"))
+                    if (sys.version_info < (3, 0)):
+                        Html_file.write(html_list2.encode("utf-8"))
+                    else:
+                        Html_file.write(html_list2)
                     get_child_sub_folders(service, current_id, level, Html_file, folders_only, folder_id, drivetype)
                     Html_file.write("""
                   </li>
@@ -177,8 +180,8 @@ def get_child_sub_folders(service, parent_id, level, Html_file, folders_only, fo
                             FILECOUNT += 1
                     child_id = item['id']
                     childname = item['name']
-                    if isinstance(childname, str):
-                        childname = unicode(childname, "utf-8")
+                    #if isinstance(childname, str):
+                        #childname = unicode(childname, "utf-8")
                     #print(item['webViewLink'])
                     indent = '  ' * level
                     depth = str(level)
@@ -187,12 +190,18 @@ def get_child_sub_folders(service, parent_id, level, Html_file, folders_only, fo
                     <ul style="list-style: none;">
                     <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
                                      + """' target='_blank'> """ + childname + """</a></span>"""
-                        Html_file.write(html_list3.encode("utf-8"))
+                        if (sys.version_info < (3, 0)):
+                            Html_file.write(html_list3.encode("utf-8"))
+                        else:
+                            Html_file.write(html_list3)
                     else:
                         html_list3 = """
                     <li><img src='""" + item['iconLink'] + """'><span><a href='""" + item['webViewLink'] \
                                      + """' target='_blank'> """ + childname + """</a></li>"""
-                        Html_file.write(html_list3.encode("utf-8"))
+                        if (sys.version_info < (3, 0)):
+                            Html_file.write(html_list3.encode("utf-8"))
+                        else:
+                            Html_file.write(html_list3)
 
                     prev_level = level
                     get_child_sub_folders(service, child_id, level, Html_file, folders_only, folder_id, drivetype)
@@ -214,6 +223,7 @@ def main():
     Calls the function to get sub folders and loops through all child folders.
     Produces the html file output and opens it in the default browser.
     """
+    foldername = ''
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
@@ -243,8 +253,10 @@ def main():
        print('An error occurred %s' % error)
        exit()
 
-    if isinstance(foldername, str):
-        childname = unicode(foldername, "utf-8")
+    
+    if (sys.version_info < (3, 0)):
+        if isinstance(foldername, str):
+            foldername = unicode(foldername, "utf-8")
 
     folders_only = flags.files
     level = 0
@@ -270,12 +282,18 @@ def main():
     <div style='text-align:center;'>
     <h1>""" + header + """</h1>
     </div>"""
-    Html_file.write(html_heading.encode("utf-8"))
+    if (sys.version_info < (3, 0)):
+        Html_file.write(html_heading.encode("utf-8"))
+    else:
+        Html_file.write(html_heading)
     html_list1 = """
     <UL id="example_tree" style="list-style: none;">
       <li><img src='https://ssl.gstatic.com/docs/doclist/images/icon_11_shared_collection_list_1.png'>
       <span>""" + folder['name'] + """</span>"""
-    Html_file.write(html_list1.encode("utf-8"))
+    if (sys.version_info < (3, 0)):
+        Html_file.write(html_list1.encode("utf-8"))
+    else:
+        Html_file.write(html_list1)
     print('Building folder structure for {0}'.format(folder['name']))
 
     get_folders(service, folder_id, level, Html_file, folders_only, drivetype)
