@@ -3,10 +3,13 @@ Google Drive Folder List builds a html output file of a Google Drive folder.
 
 #NB If you have run this script before the 19/07/2019 update you will need to delete the gdfl-secrets.json file from the .credentials folder in your User\Profile directory and re-authorise the script as it is using a different scope.
 
-This script will take an inoput Google Drive folder\Shared Drive ID or just run against the users Root if nothing specified.
+This script will take an input of a Google Drive folder\Shared Drive ID or just run against the users Root if nothing specified.
 The script get's the folder name by ID and then builds a sorted folder structure of all the child folders
 and writes this structure to a html file which also contains collapsable folders and each folder is 
 a link to the actual Google Drive folder
+
+This script relies on you having the Google Drive API python client installed as per https://developers.google.com/drive/api/v3/quickstart/python:
+**pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib**
 
 To be able to execute this script you will need to build a Google Developers project and a client_secret.json file
 Follow these instructions:
