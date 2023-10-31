@@ -61,6 +61,9 @@ def get_credentials():
             credentials = tools.run(flow, store)
         print('Storing credentials to ' + credential_path)
     return credentials
+FOLDERCOUNT = 0
+FILECOUNT = 0
+DEEPEST = 0
 
 def get_folders(service, folder_id, level, Html_file, folders_only, drivetype):
     """Get's the folders in the parent folder
